@@ -9,3 +9,5 @@ INSTRUCCIONES
 - .\.venv\Scripts\python -m pip install accelerate
 6. Ejecutar archivo "helper.py". 
 7. Ejecutar archivo "Launch.py" que se encuentra en esta misma carpeta.
+
+Nuevo readme para probar
