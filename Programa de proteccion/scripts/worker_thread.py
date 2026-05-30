@@ -2,6 +2,16 @@ from PySide6.QtCore import QThread, Signal
 import sys
 import os
 import time
+import ssl
+import urllib.request
+
+# Parche para evitar errores de SSL al descargar modelos por primera vez
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'Sistema-de-detecci-n-y-recomendaci-n-main'))
 
@@ -10,7 +20,6 @@ from captura import capturar_y_extraer
 from LLM import cadena_mitigacion
 from analizador_afectivo import analizar_intencion
 from alert_logger import log_dangerous_message
-
 
 class MonitoringWorker(QThread):
     """Worker thread que ejecuta el ciclo de monitoreo"""

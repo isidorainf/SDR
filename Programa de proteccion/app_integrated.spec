@@ -9,14 +9,14 @@ import sys
 
 block_cipher = None
 
-# Ruta del proyecto
-project_dir = os.path.dirname(os.path.abspath(SPECPATH))
+# Ruta del proyecto (CORREGIDO: Se eliminó os.path.dirname para no retroceder de carpeta)
+project_dir = os.path.abspath(SPECPATH)
 scripts_dir = os.path.join(project_dir, 'scripts')
 backend_dir = os.path.join(project_dir, 'Sistema-de-detecci-n-y-recomendaci-n-main')
 
 # Datos a incluir (archivos que no son Python)
 datas = [
-    (os.path.join(backend_dir, 'palabras_riesgo.json'), '.'),  # Archivo de palabras de riesgo
+    (os.path.join(scripts_dir, 'palabras_riesgo.json'), '.'),  # CORREGIDO: Ahora busca en scripts_dir
 ]
 
 # Importaciones ocultas necesarias
