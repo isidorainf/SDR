@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QPushButton,
     QMessageBox,
-    QInputDialog,
+    QDialog,
     QLineEdit
 )
 from PySide6.QtCore import Qt, QTimer
@@ -24,6 +24,106 @@ from side_menu import SideMenu
 from history_window import HistoryWindow
 from settings_page import SettingsPage
 from storage import load_password
+
+class LogoutDialog(QDialog):
+    """Diálogo personalizado para cerrar sesión idéntico al mockup"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("SDR - Cerrar Sesión")
+        self.setFixedSize(400, 300)
+        
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #f4f6f9;
+            }
+            QLabel#logo {
+                font-size: 50px;
+            }
+            QLabel#title {
+                color: #000000;
+                font-size: 24px;
+                font-weight: bold;
+            }
+            QLabel#subtitle {
+                color: #475569;
+                font-size: 12px;
+            }
+            QLabel#input_label {
+                color: #000000;
+                font-weight: bold;
+                font-size: 13px;
+            }
+            QLineEdit {
+                background-color: #cbd5e1;
+                border: none;
+                border-radius: 18px;
+                padding: 8px 15px;
+                font-size: 14px;
+            }
+            QPushButton {
+                background-color: #0284c7;
+                color: white;
+                border: none;
+                border-radius: 15px;
+                padding: 8px 0px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #0369a1;
+            }
+        """)
+
+        layout = QVBoxLayout()
+        layout.setAlignment(Qt.AlignCenter)
+        layout.setSpacing(10)
+
+        # Logo y Titulo
+        logo = QLabel("🛡️👁️")
+        logo.setObjectName("logo")
+        logo.setAlignment(Qt.AlignCenter)
+        layout.addWidget(logo)
+
+        title = QLabel("Cerrar Sesión")
+        title.setObjectName("title")
+        title.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title)
+
+        subtitle = QLabel("Por seguridad debe ingresar su contraseña")
+        subtitle.setObjectName("subtitle")
+        subtitle.setAlignment(Qt.AlignCenter)
+        layout.addWidget(subtitle)
+
+        layout.addSpacing(10)
+
+        # Label del Input
+        input_label = QLabel("Contraseña")
+        input_label.setObjectName("input_label")
+        input_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(input_label)
+
+        # Input
+        self.password_input = QLineEdit()
+        self.password_input.setEchoMode(QLineEdit.Password)
+        self.password_input.setFixedSize(200, 36)
+        
+        input_layout = QHBoxLayout()
+        input_layout.addWidget(self.password_input, alignment=Qt.AlignCenter)
+        layout.addLayout(input_layout)
+
+        # Botón OK
+        self.btn_ok = QPushButton("OK")
+        self.btn_ok.setFixedSize(80, 30)
+        self.btn_ok.clicked.connect(self.accept)
+        
+        btn_layout = QHBoxLayout()
+        btn_layout.addWidget(self.btn_ok, alignment=Qt.AlignCenter)
+        layout.addLayout(btn_layout)
+
+        self.setLayout(layout)
+
+    def get_password(self):
+        return self.password_input.text()
 
 
 class DashboardWindow(QMainWindow):
@@ -382,7 +482,7 @@ class DashboardWindow(QMainWindow):
             self.settings_window = None
 
     def logout(self):
-        """Cierra sesión y vuelve al login"""
+        """Cierra sesión y vuelve al login con diálogo personalizado"""
         reply = QMessageBox.question(
             self,
             "Cerrar sesión",
@@ -391,43 +491,32 @@ class DashboardWindow(QMainWindow):
         )
 
         if reply == QMessageBox.Yes:
-            # Pedir contraseña antes de cerrar sesión
-            password, ok = QInputDialog.getText(
-                self,
-                "Confirmación",
-                "Ingresa tu contraseña para cerrar la sesión:",
-                QLineEdit.EchoMode.Password
-            )
+            # Invocar el diálogo personalizado
+            dialog = LogoutDialog(self)
+            
+            if dialog.exec() == QDialog.Accepted:
+                password = dialog.get_password()
+                
+                # Validar contraseña
+                saved_password = load_password()
+                if password != saved_password:
+                    QMessageBox.warning(self, "Error", "Contraseña incorrecta. No se cerrará la sesión.")
+                    return
 
-            if not ok:
-                # Usuario presionó Cancelar
-                return
+                # Contraseña correcta, proceder con el cierre
+                if self.worker:
+                    self.worker.stop()
 
-            # Validar contraseña
-            saved_password = load_password()
-            if password != saved_password:
-                # Contraseña incorrecta
-                QMessageBox.warning(
-                    self,
-                    "Error",
-                    "Contraseña incorrecta. No se cerrará la sesión."
-                )
-                return
+                save_last_analysis_time()
 
-            # Contraseña correcta, proceder con el cierre
-            if self.worker:
-                self.worker.stop()
+                # Volver a LoginWindow
+                from login_window import LoginWindow
+                self.login_window = LoginWindow()
+                self.login_window.show()
 
-            save_last_analysis_time()
-
-            # Volver a LoginWindow
-            from login_window import LoginWindow
-            self.login_window = LoginWindow()
-            self.login_window.show()
-
-            # Cerrar sin volver a pedir contraseña
-            self.skip_password_check = True
-            self.close()
+                # Cerrar sin volver a pedir contraseña
+                self.skip_password_check = True
+                self.close()
 
     def resizeEvent(self, event):
         """Maneja el redimensionamiento de la ventana"""

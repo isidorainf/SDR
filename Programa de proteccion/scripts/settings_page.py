@@ -8,190 +8,193 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QFrame,
-    QCheckBox,
     QSpinBox,
-    QScrollArea
+    QMessageBox
 )
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont
 from settings_manager import load_settings, save_settings
 
 
 class SettingsPage(QWidget):
-    """Página de configuración con todas las opciones disponibles"""
+    """Página de configuración idéntica al mockup de la Figura 16"""
 
     back_clicked = Signal()  # Señal para volver atrás
 
     def __init__(self, parent=None, main_app=None):
         super().__init__(parent)
-        self.main_app = main_app  # Referencia a MainApp para obtener el estado
+        self.main_app = main_app
         self.settings = load_settings()
+        
+        # Variables de estado temporal antes de guardar
+        self.temp_protection = True
+        self.temp_auto_start = self.settings.get("auto_start", False)
+        
         self.init_ui()
 
     def init_ui(self):
         """Inicializa la interfaz de configuración"""
-        self.setWindowTitle("⚙️ Configuración")
-        self.setGeometry(100, 100, 800, 600)
+        self.setWindowTitle("SDR - Configuración")
+        self.setFixedSize(600, 450)
 
-        # Layout principal
-        main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(15)
-
-        # Header con botón de volver
-        header_layout = QHBoxLayout()
-        back_btn = QPushButton("← Volver")
-        back_btn.setFixedSize(100, 35)
-        back_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #2c3e50;
+        # Estilo global idéntico al mockup
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #f4f6f9;
+            }
+            QLabel#main_title {
+                color: #000000;
+                font-size: 24px;
+                font-weight: bold;
+            }
+            QLabel.setting_label {
+                color: #333333;
+                font-size: 14px;
+            }
+            QPushButton.setting_btn {
+                background-color: #38bdf8;
+                color: #000000;
+                font-weight: bold;
+                border: none;
+                border-radius: 15px;
+                padding: 6px 12px;
+                font-size: 14px;
+            }
+            QPushButton.setting_btn:hover {
+                background-color: #0ea5e9;
+            }
+            QSpinBox {
+                background-color: #38bdf8;
+                color: #000000;
+                font-weight: bold;
+                border: none;
+                border-radius: 15px;
+                padding: 6px 12px;
+                font-size: 14px;
+            }
+            QPushButton.action_btn {
+                background-color: #0284c7;
                 color: white;
                 border: none;
-                border-radius: 5px;
+                border-radius: 18px;
+                padding: 8px 25px;
+                font-size: 14px;
                 font-weight: bold;
-                font-size: 11pt;
             }
-            QPushButton:hover {
-                background-color: #34495e;
-            }
-        """)
-        back_btn.clicked.connect(self.on_back_clicked)
-        header_layout.addWidget(back_btn)
-
-        header_layout.addStretch()
-
-        title = QLabel("⚙️ Configuración del Sistema")
-        title_font = QFont()
-        title_font.setPointSize(16)
-        title_font.setBold(True)
-        title.setFont(title_font)
-        header_layout.addWidget(title)
-
-        header_layout.addStretch()
-        header_layout.addWidget(QLabel(""))  # Espaciador para centrar
-        header_layout.children()[3].setFixedWidth(100)
-
-        main_layout.addLayout(header_layout)
-
-        # Área con scroll para el contenido
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet("""
-            QScrollArea {
-                border: none;
-                background-color: transparent;
+            QPushButton.action_btn:hover {
+                background-color: #0369a1;
             }
         """)
 
-        # Widget contenedor del scroll
-        scroll_content = QWidget()
-        content_layout = QVBoxLayout()
-        content_layout.setSpacing(20)
+        main_layout = QVBoxLayout()
+        main_layout.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
+        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(40, 30, 40, 30)
 
-        # ===== SECCIÓN 1: Estado de Protección =====
-        self.status_section = self.create_status_section()
-        content_layout.addWidget(self.status_section)
+        # 1. Título
+        title = QLabel("Configuración")
+        title.setObjectName("main_title")
+        title.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(title)
+        
+        main_layout.addSpacing(20)
 
-        # Más secciones se agregarán aquí...
+        # Contenedor para las filas de configuración
+        form_layout = QVBoxLayout()
+        form_layout.setSpacing(15)
 
-        content_layout.addStretch()
-        scroll_content.setLayout(content_layout)
-        scroll_area.setWidget(scroll_content)
+        # 2. Filas de Configuración (Label Izquierda - Botón Derecha)
+        self.btn_protection = self.create_setting_row(form_layout, "Estado Protección", "Activado" if self.temp_protection else "Desactivado")
+        self.btn_protection.clicked.connect(self.toggle_protection)
 
-        main_layout.addWidget(scroll_area)
+        self.btn_auto_start = self.create_setting_row(form_layout, "Inicio Automático", "Activado" if self.temp_auto_start else "Desactivado")
+        self.btn_auto_start.clicked.connect(self.toggle_auto_start)
+
+        # Fila especial para el Intervalo (usa QSpinBox en lugar de botón)
+        interval_row = QHBoxLayout()
+        interval_label = QLabel("Intervalo de Captura (seg)")
+        interval_label.setProperty("class", "setting_label")
+        interval_row.addWidget(interval_label)
+        
+        interval_row.addStretch()
+        
+        self.spin_interval = QSpinBox()
+        self.spin_interval.setRange(5, 3600)  # Mínimo 5 seg, Máximo 1 hora
+        self.spin_interval.setValue(self.settings.get("capture_interval", 10))
+        self.spin_interval.setFixedSize(120, 32)
+        self.spin_interval.setAlignment(Qt.AlignCenter)
+        interval_row.addWidget(self.spin_interval)
+        form_layout.addLayout(interval_row)
+
+        self.btn_words = self.create_setting_row(form_layout, "Palabras a detectar", "Editar")
+        self.btn_words.clicked.connect(self.placeholder_action)
+
+        self.btn_password = self.create_setting_row(form_layout, "Cambio de contraseña", "Cambiar")
+        self.btn_password.clicked.connect(self.placeholder_action)
+
+        main_layout.addLayout(form_layout)
+        main_layout.addSpacing(30)
+
+        # 3. Botones de Acción Final (Guardar y Volver)
+        action_layout = QHBoxLayout()
+        action_layout.setAlignment(Qt.AlignCenter)
+        action_layout.setSpacing(20)
+
+        btn_save = QPushButton("Guardar")
+        btn_save.setProperty("class", "action_btn")
+        btn_save.setFixedSize(120, 36)
+        btn_save.clicked.connect(self.save_and_exit)
+        action_layout.addWidget(btn_save)
+
+        btn_back = QPushButton("Volver")
+        btn_back.setProperty("class", "action_btn")
+        btn_back.setFixedSize(120, 36)
+        btn_back.clicked.connect(self.on_back_clicked)
+        action_layout.addWidget(btn_back)
+
+        main_layout.addLayout(action_layout)
 
         self.setLayout(main_layout)
 
-        # Aplicar estilo general
-        self.setStyleSheet("""
-            QWidget {
-                background-color: #f5f5f5;
-                color: #333;
-            }
-        """)
+    def create_setting_row(self, layout, label_text, button_text):
+        """Función auxiliar para crear las filas del formulario"""
+        row = QHBoxLayout()
+        
+        label = QLabel(label_text)
+        label.setProperty("class", "setting_label")
+        row.addWidget(label)
+        
+        row.addStretch()
+        
+        btn = QPushButton(button_text)
+        btn.setProperty("class", "setting_btn")
+        btn.setFixedSize(120, 32)
+        row.addWidget(btn)
+        
+        layout.addLayout(row)
+        return btn
 
-    def create_status_section(self):
-        """Crea la sección de estado de protección"""
-        section = QFrame()
-        section.setStyleSheet("""
-            QFrame {
-                background-color: white;
-                border-radius: 10px;
-                padding: 15px;
-            }
-        """)
+    def toggle_protection(self):
+        self.temp_protection = not self.temp_protection
+        self.btn_protection.setText("Activado" if self.temp_protection else "Desactivado")
 
-        layout = QVBoxLayout()
-        layout.setSpacing(10)
+    def toggle_auto_start(self):
+        self.temp_auto_start = not self.temp_auto_start
+        self.btn_auto_start.setText("Activado" if self.temp_auto_start else "Desactivado")
 
-        # Título de la sección
-        title = QLabel("📊 Estado de Protección")
-        title_font = QFont()
-        title_font.setPointSize(13)
-        title_font.setBold(True)
-        title.setFont(title_font)
-        layout.addWidget(title)
+    def placeholder_action(self):
+        QMessageBox.information(self, "Aviso", "Esta funcionalidad se integrará en la siguiente fase.")
 
-        # Descripción
-        desc = QLabel("Estado actual del sistema de monitoreo y protección")
-        desc.setStyleSheet("color: #666; font-size: 10pt;")
-        layout.addWidget(desc)
-
-        # Separador
-        separator = QFrame()
-        separator.setFrameShape(QFrame.HLine)
-        separator.setStyleSheet("background-color: #e0e0e0;")
-        layout.addWidget(separator)
-
-        # Estado actual
-        status_layout = QHBoxLayout()
-
-        status_label = QLabel("Estado del sistema:")
-        status_label.setStyleSheet("font-size: 11pt; font-weight: bold;")
-        status_layout.addWidget(status_label)
-
-        status_layout.addStretch()
-
-        # Indicador de estado (se actualizará dinámicamente)
-        self.status_indicator = QLabel()
-        self.update_status_indicator()
-        status_layout.addWidget(self.status_indicator)
-
-        layout.addLayout(status_layout)
-
-        section.setLayout(layout)
-        return section
-
-    def update_status_indicator(self):
-        """Actualiza el indicador de estado según si el sistema está corriendo"""
-        if self.main_app and self.main_app.is_monitoring:
-            self.status_indicator.setText("🟢 Activo")
-            self.status_indicator.setStyleSheet("""
-                font-size: 11pt;
-                font-weight: bold;
-                color: #4CAF50;
-                background-color: #e8f5e9;
-          padding: 8px 15px;
-                border-radius: 5px;
-            """)
-        else:
-            self.status_indicator.setText("🔴 Inactivo")
-            self.status_indicator.setStyleSheet("""
-              font-size: 11pt;
-                font-weight: bold;
-                color: #f44336;
-                background-color: #ffebee;
-                padding: 8px 15px;
-                border-radius: 5px;
-            """)
+    def save_and_exit(self):
+        """Guarda la configuración en el JSON y vuelve al Dashboard"""
+        self.settings["auto_start"] = self.temp_auto_start
+        self.settings["capture_interval"] = self.spin_interval.value()
+        
+        save_settings(self.settings)
+        
+        QMessageBox.information(self, "Éxito", "Configuración guardada correctamente.")
+        self.on_back_clicked()
 
     def on_back_clicked(self):
-        """Maneja el click en el botón volver"""
+        """Cierra la ventana y emite la señal para mostrar el Dashboard"""
         self.back_clicked.emit()
         self.close()
-
-    def showEvent(self, event):
-        """Se llama cuando se muestra la ventana - actualizar el estado"""
-        super().showEvent(event)
-        self.update_status_indicator()

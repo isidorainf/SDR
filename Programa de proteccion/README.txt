@@ -12,3 +12,8 @@ INSTRUCCIONES DE INSTALACIÓN Y EJECUCIÓN
    - python helper.py test
 7. Iniciar la aplicación:
    - python helper.py run
+
+8. Si usarás la aplicación en otro momento solo debes ejecutar:
+   - python helper.py run       
+   - python helper.py build
+   - Ejecutar archivo launch.py

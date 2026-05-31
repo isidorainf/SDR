@@ -20,6 +20,8 @@ from captura import capturar_y_extraer
 from LLM import cadena_mitigacion
 from analizador_afectivo import analizar_intencion
 from alert_logger import log_dangerous_message
+from timestamp_manager import save_last_analysis_time  # Importar la función
+from settings_manager import get_setting #Importamos el lector de configuraciones
 
 class MonitoringWorker(QThread):
     """Worker thread que ejecuta el ciclo de monitoreo"""
@@ -57,6 +59,9 @@ class MonitoringWorker(QThread):
                     alertas = detectar_riesgo(texto_limpio, self.palabras_riesgo)
                     
                     intencion = analizar_intencion(texto_limpio)
+                    
+                    # <--- NUEVA LÍNEA: Guardar el timestamp justo después de terminar el análisis
+                    save_last_analysis_time() 
                     
                     if alertas and texto_limpio != self.ultimo_texto and len(texto_limpio) > 10:
                         self.ultimo_texto = texto_limpio
@@ -97,11 +102,19 @@ class MonitoringWorker(QThread):
                         except Exception as e:
                             self.error_signal.emit(f"Error en LLM: {str(e)}")
                     
-                    time.sleep(5)
+                    # <--- NUEVA LÓGICA: Leer el intervalo dinámicamente
+                    intervalo = get_setting("capture_interval")
+                    
+                    # Pequeña validación por si el JSON devuelve algo extraño
+                    if not isinstance(intervalo, int) or intervalo < 5:
+                        intervalo = 10 
+                        
+                    time.sleep(intervalo)
                     
                 except Exception as e:
                     self.error_signal.emit(f"Error en ciclo de monitoreo: {str(e)}")
-                    time.sleep(5)
+                    # Si hay error, esperamos 10 segundos antes de volver a intentar
+                    time.sleep(10)
         
         except Exception as e:
             self.error_signal.emit(f"Error fatal en monitoreo: {str(e)}")

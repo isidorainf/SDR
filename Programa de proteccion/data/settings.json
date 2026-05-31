@@ -1,5 +1,5 @@
 {
     "auto_start": false,
-    "capture_interval": 5,
+    "capture_interval": 50,
     "custom_words": []
 }
