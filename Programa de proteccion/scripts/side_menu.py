@@ -8,261 +8,194 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QPushButton,
     QLabel,
-    QMessageBox,
+    QFrame
 )
-from PySide6.QtCore import Qt, Signal, QTimer, QRect
-from PySide6.QtGui import QFont, QColor
-from PySide6.QtCore import QPropertyAnimation, QEasingCurve
-
+from PySide6.QtCore import Qt, Signal, QTimer, QRect, QPropertyAnimation, QEasingCurve
+from PySide6.QtGui import QFont
 
 class SideMenu(QWidget):
-    """Menú lateral deslizable"""
+    """Menú lateral deslizable idéntico al mockup (Figura 11)"""
 
-    # Signals
     guide_clicked = Signal()
     history_clicked = Signal()
     settings_clicked = Signal()
     logout_clicked = Signal()
-    menu_toggled = Signal(bool)  # True = abierto, False = cerrado
+    menu_toggled = Signal(bool) 
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
         self.is_open = False
-        self.menu_width = 300  # Aumentado de 250 a 300
+        self.menu_width = 280 
 
         self.init_ui()
         self.setup_animation()
 
-        # Configurar como widget flotante
+        # Configurar como widget flotante sobre el dashboard
         self.setWindowFlags(Qt.Widget)
-
-        # Ajustar tamaño inicial
+        
         if parent:
             self.setFixedHeight(parent.height())
-            self.move(0, 0)
+            self.move(-self.menu_width, 0) # Iniciar oculto fuera de la pantalla
 
     def init_ui(self):
-        """Inicializa la interfaz del menú"""
+        
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setObjectName("menu_container")
+
+        # Contenedor principal con borde derecho para dar efecto de "cajón"
         self.setStyleSheet("""
-            QWidget {
-                background-color: #1e3a5f;
+            QWidget#menu_container {
+                background-color: #bae6fd; /* Celeste sólido que tapará el fondo */
+                border-right: 3px solid #0284c7;
             }
-            QPushButton {
-                background-color: #2563eb;
-                color: white;
-                border: none;
-                padding: 20px 25px;
-                text-align: left;
-                font-size: 14pt;
+            QLabel#menu_title {
+                color: #000000;
                 font-weight: bold;
-                border-radius: 5px;
-                margin: 5px 10px;
+                font-size: 22px;
+                text-decoration: underline;
             }
-            QPushButton:hover {
-                background-color: #1d4ed8;
+            QPushButton.menu_btn {
+                background-color: #f0f9ff;
+                color: #000000;
+                border: 2px solid #0284c7;
+                border-radius: 20px;
+                padding: 12px 20px;
+                text-align: left;
+                font-size: 15px;
+                font-weight: bold;
+                margin: 5px 15px;
             }
-            QPushButton:pressed {
-            background-color: #1e40af;
+            QPushButton.menu_btn:hover {
+                background-color: #e0f2fe;
+            }
+            QPushButton#logout_btn {
+                background-color: #fca5a5;
+                border: 2px solid #dc2626;
+            }
+            QPushButton#logout_btn:hover {
+                background-color: #f87171;
             }
         """)
 
         layout = QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setContentsMargins(0, 20, 0, 30)
+        layout.setSpacing(10)
 
-        # Encabezado
+        # Encabezado "MENÚ"
         header_layout = QHBoxLayout()
-        header_layout.setContentsMargins(20, 15, 20, 15)
-
-        title = QLabel("⚙️ Menú")
-        title_font = QFont()
-        title_font.setPointSize(16)
-        title_font.setBold(True)
-        title.setFont(title_font)
-        title.setStyleSheet("color: white;")
-
+        title = QLabel("MENÚ")
+        title.setObjectName("menu_title")
+        title.setAlignment(Qt.AlignCenter)
         header_layout.addWidget(title)
-        header_layout.addStretch()
-
+        
+        # Botón sutil de cierre
         close_btn = QPushButton("✕")
-        close_btn.setMaximumWidth(50)
-        close_btn.setMinimumHeight(40)
+        close_btn.setFixedSize(30, 30)
         close_btn.clicked.connect(self.toggle_menu)
         close_btn.setStyleSheet("""
             QPushButton {
-                background-color: transparent;
-                color: white;
-                border: none;
-                font-size: 20pt;
-                padding: 5px;
-                margin: 0px;
+                background: transparent; color: #000; font-size: 18px; font-weight: bold; border: none;
             }
-            QPushButton:hover {
-                background-color: #e74c3c;
-                border-radius: 5px;
-            }
+            QPushButton:hover { color: #dc2626; }
         """)
-        header_layout.addWidget(close_btn)
-
+        header_layout.addWidget(close_btn, alignment=Qt.AlignRight)
+        
         layout.addLayout(header_layout)
+        layout.addSpacing(30)
 
-        # Separador
-        separator = QLabel()
-        separator.setStyleSheet("background-color: #3b5998; max-height: 2px;")
-        layout.addWidget(separator)
-
-        # Espaciado
-        layout.addSpacing(10)
-
-        # Botones de menú
+        # Botones de navegación
         self.guide_btn = QPushButton("📖 Guía de uso")
-        self.guide_btn.setMinimumHeight(60)
+        self.guide_btn.setProperty("class", "menu_btn")
         self.guide_btn.clicked.connect(self.on_guide_clicked)
         layout.addWidget(self.guide_btn)
 
         self.history_btn = QPushButton("📋 Historial")
-        self.history_btn.setMinimumHeight(60)
+        self.history_btn.setProperty("class", "menu_btn")
         self.history_btn.clicked.connect(self.on_history_clicked)
         layout.addWidget(self.history_btn)
 
         self.settings_btn = QPushButton("⚙️ Configuración")
-        self.settings_btn.setMinimumHeight(60)
+        self.settings_btn.setProperty("class", "menu_btn")
         self.settings_btn.clicked.connect(self.on_settings_clicked)
         layout.addWidget(self.settings_btn)
 
-        # Separador antes de logout
-        layout.addSpacing(10)
-        separator2 = QLabel()
-        separator2.setStyleSheet("background-color: #3b5998; max-height: 2px;")
-        layout.addWidget(separator2)
-        layout.addSpacing(10)
-
-        self.logout_btn = QPushButton("🚪 Cerrar sesión")
-        self.logout_btn.setMinimumHeight(60)
-        self.logout_btn.clicked.connect(self.on_logout_clicked)
-        self.logout_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #dc2626;
-                color: white;
-                border: none;
-                padding: 20px 25px;
-                text-align: left;
-                font-size: 14pt;
-                font-weight: bold;
-                border-radius: 5px;
-                margin: 5px 10px;
-            }
-            QPushButton:hover {
-                background-color: #b91c1c;
-            }
-            QPushButton:pressed {
-                background-color: #991b1b;
-            }
-        """)
-        layout.addWidget(self.logout_btn)
-
         layout.addStretch()
+
+        # Botón de Logout abajo
+        self.logout_btn = QPushButton("🚪 Cerrar Sesión")
+        self.logout_btn.setProperty("class", "menu_btn")
+        self.logout_btn.setObjectName("logout_btn")
+        self.logout_btn.clicked.connect(self.on_logout_clicked)
+        layout.addWidget(self.logout_btn)
 
         self.setLayout(layout)
         self.setFixedWidth(self.menu_width)
-        self.hide()
 
     def setup_animation(self):
-        """Configura la animación de deslizamiento"""
         self.animation = QPropertyAnimation(self, b"geometry")
-        self.animation.setDuration(300)
-        self.animation.setEasingCurve(QEasingCurve.InOutQuart)
+        self.animation.setDuration(250)
+        self.animation.setEasingCurve(QEasingCurve.OutCubic)
 
     def toggle_menu(self):
-        """Abre o cierra el menú con animación"""
         if self.is_open:
             self.close_menu()
         else:
             self.open_menu()
 
     def open_menu(self):
-        """Abre el menú"""
-        if self.is_open:
-            return
-
+        if self.is_open: return
         self.is_open = True
 
-        # Ajustar altura al padre
         if self.parent():
-            parent_height = self.parent().height()
-            self.setFixedHeight(parent_height)
+            self.setFixedHeight(self.parent().height())
 
+        self.raise_()
         self.show()
-        self.raise_()  # Traer al frente
 
-        # Animar desde fuera hacia adentro
-        start_x = -self.menu_width
-        end_x = 0
-
-        start_geometry = QRect(start_x, 0, self.menu_width, self.height())
-        end_geometry = QRect(end_x, 0, self.menu_width, self.height())
+        start_geometry = QRect(-self.menu_width, 0, self.menu_width, self.height())
+        end_geometry = QRect(0, 0, self.menu_width, self.height())
 
         self.animation.setStartValue(start_geometry)
         self.animation.setEndValue(end_geometry)
         self.animation.start()
-
         self.menu_toggled.emit(True)
 
     def close_menu(self):
-        """Cierra el menú"""
-        if not self.is_open:
-            return
-
+        if not self.is_open: return
         self.is_open = False
 
-        # Ajustar altura al padre antes de cerrar
         if self.parent():
-            parent_height = self.parent().height()
-            self.setFixedHeight(parent_height)
+            self.setFixedHeight(self.parent().height())
 
-        # Animar desde adentro hacia afuera
-        start_x = 0
-        end_x = -self.menu_width
-
-        start_geometry = QRect(start_x, 0, self.menu_width, self.height())
-        end_geometry = QRect(end_x, 0, self.menu_width, self.height())
+        start_geometry = QRect(0, 0, self.menu_width, self.height())
+        end_geometry = QRect(-self.menu_width, 0, self.menu_width, self.height())
 
         self.animation.setStartValue(start_geometry)
         self.animation.setEndValue(end_geometry)
         self.animation.start()
-
-        # Esperar a que termine la animación antes de hide
-        QTimer.singleShot(300, self.hide)
-
         self.menu_toggled.emit(False)
 
     def on_guide_clicked(self):
-        """Maneja click en Guía de uso"""
         self.close_menu()
         self.guide_clicked.emit()
 
     def on_history_clicked(self):
-        """Maneja click en Historial"""
         self.close_menu()
         self.history_clicked.emit()
 
     def on_settings_clicked(self):
-        """Maneja click en Configuración"""
         self.close_menu()
         self.settings_clicked.emit()
 
     def on_logout_clicked(self):
-        """Maneja click en Cerrar sesión"""
         self.close_menu()
         self.logout_clicked.emit()
 
     def update_height(self):
-        """Actualiza la altura del menú según el padre"""
         if self.parent():
-            parent_height = self.parent().height()
-            self.setFixedHeight(parent_height)
-
-            # Si está abierto, actualizar la geometría
+            self.setFixedHeight(self.parent().height())
             if self.is_open:
-                self.setGeometry(0, 0, self.menu_width, parent_height)
+                self.setGeometry(0, 0, self.menu_width, self.height())
+            else:
+                self.setGeometry(-self.menu_width, 0, self.menu_width, self.height())
