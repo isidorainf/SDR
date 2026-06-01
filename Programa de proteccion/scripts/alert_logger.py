@@ -6,13 +6,12 @@ import os
 from datetime import datetime
 from config import LOCAL_DATA_DIR
 
-
-ALERTAS_DIR = os.path.join(LOCAL_DATA_DIR, 'alertas')
-
+# Fuerza la ruta absoluta para evitar ambigüedades
+ALERTAS_DIR = os.path.abspath(os.path.join(LOCAL_DATA_DIR, 'alertas'))
 
 def ensure_alertas_dir():
-    """Crea la carpeta de alertas si no existe"""
-    os.makedirs(ALERTAS_DIR, exist_ok=True)
+    if not os.path.exists(ALERTAS_DIR):
+        os.makedirs(ALERTAS_DIR, exist_ok=True)
 
 
 def log_dangerous_message(level, content, reason):

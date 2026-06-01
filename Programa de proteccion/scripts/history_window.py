@@ -46,15 +46,25 @@ class HistoryWindow(QWidget):
                 border: 1px solid #cbd5e1;
                 border-radius: 5px;
                 gridline-color: #e2e8f0;
-                font-size: 14px; /* Letra un poco más grande */
+                font-size: 14px;
+                selection-background-color: #e2e8f0; /* Color suave al seleccionar */
+                selection-color: #000000;
+            }
+            QTableWidget::item {
+                padding: 10px;
+                border-bottom: 1px solid #e2e8f0;
+            }
+            QTableWidget::item:selected {
+                background-color: #f1f5f9; 
+                color: #000000;
             }
             QHeaderView::section {
-                background-color: #818cf8;
+                background-color: #6366f1;
                 color: white;
                 font-weight: bold;
                 font-size: 15px;
                 padding: 10px;
-                border: 1px solid #6366f1;
+                border: none;
             }
             QPushButton.action_btn {
                 background-color: #0284c7;

@@ -18,6 +18,8 @@ from settings_page import SettingsPage
 from storage import load_password
 from guide_window import GuideWindow
 from alert_logger import read_all_alerts, parse_alert_file
+from details_window import DetailsWindow
+from manage_window import ManageWindow
 
 class LogoutDialog(QDialog):
     """Diálogo personalizado para cerrar sesión idéntico al mockup"""
@@ -95,11 +97,10 @@ class DashboardWindow(QMainWindow):
         self.setWindowTitle("SDR - Panel de Control")
         self.setFixedSize(900, 600)
         
-        # EL ORDEN CORRECTO ESTÁ AQUÍ
-        self.init_ui()                 # 1. Dibuja la interfaz (incluyendo los óvalos)
-        self.setup_side_menu()         # 2. Prepara el menú
-        self.start_time_update_timer() # 3. Inicia el reloj
-        self.update_analysis_time()    # 4. Actualiza los textos y números YA DIBUJADOS
+        self.init_ui()
+        self.setup_side_menu()
+        self.start_time_update_timer()
+        self.update_counters() 
 
     def init_ui(self):
         self.setStyleSheet("""
@@ -109,7 +110,6 @@ class DashboardWindow(QMainWindow):
             QLabel.info_text { color: #334155; font-size: 15px; }
             QLabel#resumen_title { color: #0f172a; font-weight: bold; font-size: 18px; background-color: #bae6fd; padding: 5px 15px; border-radius: 10px; }
             
-            /* Estilos de los Óvalos de Contadores */
             QFrame#frame_counters { background-color: #e0f2fe; border-radius: 15px; }
             QFrame.oval { border-radius: 50px; }
             QFrame#oval_bajo { background-color: #bbf7d0; border: 3px solid #22c55e; }
@@ -119,10 +119,20 @@ class DashboardWindow(QMainWindow):
             QLabel.oval_title { color: #000000; font-weight: bold; font-size: 16px; }
             QLabel.oval_val { color: #000000; font-weight: bold; font-size: 28px; }
             
-            /* Botones de Acción */
-            QPushButton.action_btn { background-color: #0284c7; color: white; border-radius: 20px; padding: 10px 30px; font-weight: bold; font-size: 15px; }
+            /* Botones inferiores estándar */
+            QPushButton.action_btn { background-color: #0284c7; color: white; border-radius: 20px; padding: 12px 20px; font-weight: bold; font-size: 15px; }
             QPushButton.action_btn:hover { background-color: #0369a1; }
-            QPushButton#toggle_btn { background-color: #10b981; color: white; border-radius: 20px; padding: 10px 30px; font-weight: bold; font-size: 15px; }
+            
+            /* Botón Gigante Central */
+            QPushButton#toggle_btn { 
+                background-color: #10b981; 
+                color: white; 
+                border-radius: 25px; 
+                padding: 15px 0px; 
+                font-weight: bold; 
+                font-size: 20px; 
+                margin: 0px 100px; /* Lo encoge a los lados para que no sea pantalla completa */
+            }
             QPushButton#toggle_btn:hover { background-color: #059669; }
         """)
 
@@ -134,7 +144,6 @@ class DashboardWindow(QMainWindow):
 
         # --- HEADER ---
         header_layout = QHBoxLayout()
-        
         self.settings_btn = QPushButton("⚙️")
         self.settings_btn.setFixedSize(50, 50)
         self.settings_btn.setStyleSheet("QPushButton { background-color: transparent; font-size: 24px; border: none; } QPushButton:hover { background-color: #e2e8f0; border-radius: 25px; }")
@@ -145,7 +154,7 @@ class DashboardWindow(QMainWindow):
         title.setObjectName("main_title")
         title.setAlignment(Qt.AlignCenter)
         header_layout.addWidget(title, 1)
-        header_layout.addSpacing(50) # Balance
+        header_layout.addSpacing(50)
         main_layout.addLayout(header_layout)
 
         # --- ESTADO Y USUARIO ---
@@ -186,23 +195,31 @@ class DashboardWindow(QMainWindow):
         resumen_layout.addWidget(frame_counters)
         main_layout.addLayout(resumen_layout)
 
-        main_layout.addStretch()
+        main_layout.addSpacing(20)
 
-        # --- BOTONES INFERIORES ---
-        btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(20)
-
+        # --- BOTÓN GIGANTE CENTRAL ---
         self.toggle_btn = QPushButton("▶️ Activar Protección")
         self.toggle_btn.setObjectName("toggle_btn")
         self.toggle_btn.clicked.connect(self.toggle_monitoring)
-        btn_layout.addWidget(self.toggle_btn)
+        main_layout.addWidget(self.toggle_btn)
 
-        btn_detalles = QPushButton("Historial de Incidentes")
+        main_layout.addStretch()
+
+        # --- BOTONES INFERIORES DE NAVEGACIÓN ---
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(15)
+
+        btn_detalles = QPushButton("📊 Detalles Alertas")
         btn_detalles.setProperty("class", "action_btn")
-        btn_detalles.clicked.connect(self.show_history)
+        btn_detalles.clicked.connect(self.show_details)
         btn_layout.addWidget(btn_detalles)
 
-        btn_manejo = QPushButton("Manejo Alertas")
+        btn_historial = QPushButton("📋 Historial Incidentes")
+        btn_historial.setProperty("class", "action_btn")
+        btn_historial.clicked.connect(self.show_history)
+        btn_layout.addWidget(btn_historial)
+
+        btn_manejo = QPushButton("⚠️ Manejo Alertas")
         btn_manejo.setProperty("class", "action_btn")
         btn_manejo.clicked.connect(self.manage_alerts)
         btn_layout.addWidget(btn_manejo)
@@ -210,7 +227,6 @@ class DashboardWindow(QMainWindow):
         main_layout.addLayout(btn_layout)
 
     def create_oval(self, title_text, obj_name, parent_layout):
-        """Crea el diseño de un óvalo con su número"""
         oval = QFrame()
         oval.setObjectName(obj_name)
         oval.setProperty("class", "oval")
@@ -230,21 +246,19 @@ class DashboardWindow(QMainWindow):
         layout.addWidget(lbl_title)
         layout.addWidget(lbl_val)
         parent_layout.addWidget(oval)
-        
         return lbl_val
 
     def update_counters(self):
-        """Lee la carpeta alertas y suma los contadores"""
         alerts = read_all_alerts()
         c_bajo = c_medio = c_critico = 0
         
         for _, filepath in alerts:
             data = parse_alert_file(filepath)
             if data:
-                lvl = data.get('level', '').lower()
-                if 'bajo' in lvl or 'low' in lvl: c_bajo += 1
-                elif 'medio' in lvl or 'medium' in lvl: c_medio += 1
-                elif 'critico' in lvl or 'critical' in lvl: c_critico += 1
+                lvl = data.get('level', '').lower().replace('í', 'i')
+                if 'bajo' in lvl: c_bajo += 1
+                elif 'medio' in lvl: c_medio += 1
+                elif 'critico' in lvl: c_critico += 1
                 
         self.lbl_bajo.setText(str(c_bajo))
         self.lbl_medio.setText(str(c_medio))
@@ -262,7 +276,6 @@ class DashboardWindow(QMainWindow):
         self.update_counters()
 
     def toggle_monitoring(self):
-        """Enciende o apaga el Worker de IA"""
         if not self.is_monitoring:
             try:
                 self.worker = MonitoringWorker()
@@ -271,7 +284,11 @@ class DashboardWindow(QMainWindow):
                 
                 self.is_monitoring = True
                 self.toggle_btn.setText("⏹️ Desactivar Protección")
-                self.toggle_btn.setStyleSheet("background-color: #ef4444;") 
+                # Actualizar CSS para que sea ROJO
+                self.toggle_btn.setStyleSheet("""
+                    QPushButton { background-color: #ef4444; color: white; border-radius: 25px; padding: 15px 0px; font-weight: bold; font-size: 20px; margin: 0px 100px; }
+                    QPushButton:hover { background-color: #dc2626; }
+                """) 
                 self.status_label.setText("🟢 Protección Activada")
                 self.status_label.setStyleSheet("color: #16a34a;")
             except Exception as e:
@@ -281,17 +298,60 @@ class DashboardWindow(QMainWindow):
                 self.worker.stop()
             self.is_monitoring = False
             self.toggle_btn.setText("▶️ Activar Protección")
-            self.toggle_btn.setStyleSheet("background-color: #10b981;") 
+            # Devolver CSS para que sea VERDE
+            self.toggle_btn.setStyleSheet("""
+                QPushButton { background-color: #10b981; color: white; border-radius: 25px; padding: 15px 0px; font-weight: bold; font-size: 20px; margin: 0px 100px; }
+                QPushButton:hover { background-color: #059669; }
+            """) 
             self.status_label.setText("🔴 Protección Desactivada")
             self.status_label.setStyleSheet("color: #dc2626;")
 
     def on_worker_event(self, message_dict):
-        """Si el worker avisa que detectó una alerta, sumamos los contadores"""
         if message_dict.get('tipo') == 'alerta':
             self.update_counters()
 
+    def show_details(self):
+        """Abre la ventana maestra de Detalles de Alertas"""
+        self.hide()
+        self.details_window = DetailsWindow(parent=None, main_app=self)
+        self.details_window.back_clicked.connect(self.on_details_back)
+        self.details_window.show()
+
+    def on_details_back(self):
+        self.show()
+        if hasattr(self, 'details_window') and self.details_window:
+            self.details_window.close()
+            self.details_window = None
+
     def manage_alerts(self):
-        QMessageBox.information(self, "Manejo de Alertas", "Funcionalidad de manejo de alertas se implementará en la próxima fase.")
+        """Abre directamente el Detalle profundo en la alerta más reciente"""
+        # Obtenemos la lista ordenada usando la misma lógica de DetailsWindow
+        alerts = read_all_alerts()
+        parsed_alerts = []
+        for fn, fp in alerts:
+            data = parse_alert_file(fp)
+            if data:
+                data['filepath'] = fp
+                parsed_alerts.append(data)
+                
+        if not parsed_alerts:
+            QMessageBox.information(self, "Sin alertas", "No hay alertas registradas para manejar.")
+            return
+
+        def get_level_weight(lvl_str):
+            l = lvl_str.lower().replace('í', 'i')
+            if 'critico' in l: return 0
+            if 'medio' in l: return 1
+            if 'bajo' in l: return 2
+            return 3
+
+        parsed_alerts.sort(key=lambda x: x['timestamp'], reverse=True)
+        parsed_alerts.sort(key=lambda x: get_level_weight(x.get('level', '')))
+
+        self.hide()
+        # Abre ManageWindow pasándole la lista y el índice 0 (la más importante)
+        self.manage_win = ManageWindow(parsed_alerts, 0, previous_window=self)
+        self.manage_win.show()
 
     def closeEvent(self, event):
         if self.skip_password_check:
